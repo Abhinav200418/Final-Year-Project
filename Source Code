@@ -1,0 +1,184 @@
+Step-1:
+  # Install required libraries (for Google Colab users)
+  !pip install pandas numpy seaborn scikit-learn joblib
+
+Step-2:
+  # Import necessary libraries
+  import pandas as pd
+  import numpy as np
+  import seaborn as sns
+  import matplotlib.pyplot as plt
+  from sklearn.model_selection import train_test_split
+  from sklearn.ensemble import RandomForestClassifier
+  from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+  from sklearn.preprocessing import LabelEncoder
+  from sklearn.feature_selection import RFE
+  from sklearn.ensemble import RandomForestClassifier
+  import joblib
+  import shap
+
+Step-3:
+  # Load the dataset
+  file_path = r "/content/Student Engagement Level-Binary.csv" 
+  df = pd.read_csv(file_path)
+       
+Step-4:
+  # Show first few rows
+  print(df.head())
+  # Check for missing values
+  print("Column Names:", df.columns.tolist())
+  print("Missing Values:\n", df.isnull().sum())
+Step-5:
+  # Summary stats
+  print(df.describe())
+
+Step-6:
+  # Plot class distribution
+  sns.countplot(x='Engagement Level', data=df)  
+  plt.title("Distribution of Engagement Level (High vs Low)")
+  plt.show()
+
+Step-7:
+   # Visualizing numerical feature distributions
+  sns.histplot(df['# Logins'], kde=True)
+  plt.title("Distribution of Logins")
+  plt.show()
+Step-8:
+  # Histogram: Average time to submit assignment
+  sns.histplot(df['Average time to submit assignment (in hours)'], kde=True)
+  plt.title("Distribution of Average Time to Submit Assignment")
+  plt.show()
+
+Step-9:
+  # Encode the target variable 'Engagement Level' (High -> 1, Low -> 0)
+  label_encoder = LabelEncoder()
+  df['Engagement Level'] = label_encoder.fit_transform(df['Engagement Level']
+
+Step-10:
+  # Define features (X) and target (y)
+  X = df.drop(['Engagement Level', ’Student ID’], axis=1)
+  y = df['Engagement Level']
+
+Step-11:
+  # Split data into training (80%) and testing (20%) sets
+  X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=52)
+
+Step-12:
+  # Random Forest with limited capacity to avoid overfitting
+  model = RandomForestClassifier(
+  n_estimators=5,
+  max_depth=2,
+  max_features=0.5
+  min_samples_split=10,
+  min_samples_leaf=10,
+  random_state=42)
+Step-13:
+  # Train the model
+  model.fit(X_train, y_train)
+
+Step-14:
+  # Apply Recursive Feature Elimination (RFE)
+  rfe_selector = RFE(estimator=RandomForestClassifier(random_state=52), n_features_to_select=0.8) 
+  rfe_selector.fit(X_train, y_train)
+      
+Step-15:
+  # Transform training and testing sets to only include selected features
+  X_train_selected = rfe_selector.transform(X_train)
+  X_test_selected = rfe_selector.transform(X_test)
+
+Step-16:
+  # Retrieve selected feature names
+  selected_features = X.columns[rfe_selector.support_]
+  X_train_selected_df = pd.DataFrame(X_train_selected, columns=selected_features)
+  X_test_selected_df = pd.DataFrame(X_test_selected, columns=selected_features)
+
+Step-17:
+  # Optional: Display selected features
+  print("Selected Features:", list(selected_features))
+
+Step-18:
+  # Predict the model
+  y_train_pred = model.predict(X_train)
+  y_test_pred = model.predict(X_test)
+
+Step-19:
+  # Accuracy
+  train_accuracy = accuracy_score(y_train, y_train_pred)
+  test_accuracy = accuracy_score(y_test, y_test_pred)
+  print(f"\nTraining Accuracy: {train_accuracy * 100:.2f}%")
+  print(f"Testing Accuracy : {test_accuracy * 100:.2f}%")
+
+Step-20:
+  # Confusion matrix
+  conf_matrix = confusion_matrix(y_test, y_test_pred)
+  sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+  plt.title("Confusion Matrix")
+  plt.xlabel("Predicted")
+  plt.ylabel("Actual")
+  plt.show()
+
+Step-21:
+  # Classification report
+  print("\nClassification Report:\n", classification_report(y_test, y_test_pred))
+
+Step-22:
+  # Feature importances
+  feature_importances = pd.DataFrame({
+    'Feature': X.columns,
+    'Importance': model.feature_importances_
+  }).sort_values(by='Importance', ascending=False)
+
+
+
+Step-23:
+  # Bar plot for feature importances
+  plt.figure(figsize=(10,6))
+  sns.barplot(x='Importance', y='Feature', data=feature_importances)
+  plt.title("Feature Importances")
+  plt.show()
+
+Step-24:
+
+  # Save model
+  joblib.dump(model, 'student_engagement_model.pkl')
+
+
+Step-25:
+
+  # Generate SHAP values
+  explainer = shap.TreeExplainer(model)
+  shap_values = explainer.shap_values(X_train)
+
+
+
+Step-26:
+
+  # Convert SHAP values to NumPy array if needed
+  shap_values = np.array(shap_values)
+
+
+
+Step-27:
+
+  # Handle multi-dimensional SHAP values (binary classification)
+  if shap_values.ndim == 3 and shap_values.shape[-1] == 2:
+      shap_values_fixed = shap_values[:, :, 1]  # Use SHAP values for class 1
+  else:
+      shap_values_fixed = shap_values
+
+
+
+Step-28:
+
+  # Ensure SHAP values match feature matrix shape
+  if shap_values_fixed.shape != X_train.shape:
+      raise ValueError(f"SHAP values shape {shap_values_fixed.shape} does not match feature matrix shape {X_train_selected_df.shape}")
+
+
+Step-29:
+
+  # Generate a violin plot of SHAP values
+  shap.summary_plot(shap_values_fixed, X_train,plot_type="violin")
+
+
+
